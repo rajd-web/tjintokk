@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Slagnäs – Weather & Map</title>
+
+  <style>
+    :root{
+      --pad: 24px;
+      --card: rgba(0,0,0,.62);
+      --radius: 16px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: #fff;
+    }
+
+    /* FULLSCREEN MAP */
+    #map {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      filter: saturate(1.05) contrast(1.05);
+    }
+
+    /* LOGO – bottom right */
+    #logo {
+      position: fixed;
+      right: var(--pad);
+      bottom: var(--pad);
+      height: 80px;
+      width: auto;
+      z-index: 20;
+      opacity: 0.95;
+      pointer-events: none;
+    }
+
+    /* HUD / PANEL */
+    #hud{
+      position: fixed;
+      left: var(--pad);
+      top: var(--pad);
+      background: var(--card);
+      padding: 18px 22px;
+      border-radius: var(--radius);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      min-width: 520px;
+      max-width: 52vw;
+      z-index: 10;
+    }
+
+    #rowTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 16px;
+    }
+    #place{
+      font-size: 30px;
+      font-weight: 650;
+      letter-spacing:.2px;
+      margin:0;
+    }
+    #clock{ text-align:right; }
+    #time{
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+    #date{
+      font-size: 18px;
+      opacity:.92;
+      margin-top: 4px;
+    }
+
+    /* NOW (big) */
+    #rowMain{
+      display:flex;
+      align-items:center;
+      gap: 18px;
+      margin-top: 14px;
+    }
+    #iconNow{ width: 86px; height: 86px; }
+    #tempNow{
+      font-size: 102px;
+      font-weight: 800;
+      letter-spacing:-1px;
+      line-height: .95;
+    }
+    #meta{
+      margin-top: 8px;
+      font-size: 22px;
+      opacity:.95;
+    }
+    #meta small{
+      opacity:.85;
+      font-size: 18px;
+      display:block;
+      margin-top: 6px;
+    }
+
+    /* 3 widgets */
+    #widgets{
+      display: flex;
+      gap: 14px;
+      margin-top: 14px;
+      flex-wrap: nowrap;
+    }
+    .wbox{
+      background: rgba(255,255,255,0.09);
+      border-radius: 12px;
+      padding: 12px 14px;
+      min-width: 160px;
+    }
+    .wlabel{
+      font-size: 16px;
+      opacity: .9;
+      margin-bottom: 8px;
+    }
+    .wrow{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .wicon{ width: 38px; height: 38px; }
+    .wtemp{
+      font-size: 28px;
+      font-weight: 750;
+      letter-spacing: -.3px;
+    }
+    .wdesc{
+      margin-top: 6px;
+      font-size: 14px;
+      opacity: .85;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+
+    @media (max-width: 980px){
+      #hud{ min-width: 420px; max-width: 90vw; }
+      #tempNow{ font-size: 84px; }
+      #iconNow{ width: 72px; height: 72px; }
+      .wbox{ min-width: 140px; }
+      #logo { height: 64px; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- MAP (your bbox + marker) -->
+  <iframe id="map"
+    src="https://www.openstreetmap.org/export/embed.html?bbox=18.071651458740238,65.59402020365266,18.255243301391605,65.63388794503243&layer=mapnik&marker=65.611,18.756"
+    loading="eager">
+  </iframe>
+
+  <!-- LOGO (upload logo.png next to index.html in the repo) -->
+  <img id="logo" src="logo.png" alt="Logo" />
+
+  <!-- HUD -->
+  <section id="hud" aria-label="Weather panel">
+    <div id="rowTop">
+      <h1 id="place">Slagnäs</h1>
+      <div id="clock">
+        <div id="time">--:--</div>
+        <div id="date">----</div>
+      </div>
+    </div>
+
+    <div id="rowMain">
+      <div id="iconNow" aria-label="Weather icon now"></div>
+      <div id="tempNow">--°C</div>
+    </div>
+
+    <div id="meta">
+      <div id="descNow">Loading weather…</div>
+      <small id="updated"></small>
+    </div>
+
+    <div id="widgets">
+      <div class="wbox">
+        <div class="wlabel">Now</div>
+        <div class="wrow">
+          <div id="wIconNow" class="wicon"></div>
+          <div id="wTempNow" class="wtemp">--°C</div>
+        </div>
+        <div id="wDescNow" class="wdesc"></div>
+      </div>
+
+      <div class="wbox">
+        <div class="wlabel">In 3 hours</div>
+        <div class="wrow">
+          <div id="wIcon3h" class="wicon"></div>
+          <div id="wTemp3h" class="wtemp">--°C</div>
+        </div>
+        <div id="wDesc3h" class="wdesc"></div>
+      </div>
+
+      <div class="wbox">
+        <div class="wlabel">Tomorrow</div>
+        <div class="wrow">
+          <div id="wIconTom" class="wicon"></div>
+          <div id="wTempTom" class="wtemp">--°C</div>
+        </div>
+        <div id="wDescTom" class="wdesc"></div>
+      </div>
+    </div>
+  </section>
+
+<script>
+  // Fixed location: Slagnäs
+  const LAT = 65.611, LON = 18.756;
+
+  const WEATHER_URL =
+    `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
+    `&current=temperature_2m,wind_speed_10m,weather_code` +
+    `&hourly=temperature_2m,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
+    `&wind_speed_unit=ms&timezone=auto`;
+
+  /* ===== Simple inline SVG icons ===== */
+  function svgSun(size=86){ return `
+    <svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="12" fill="white"/>
+      <g stroke="white" stroke-width="4" stroke-linecap="round">
+        <line x1="32" y1="4"  x2="32" y2="14"/><line x1="32" y1="50" x2="32" y2="60"/>
+        <line x1="4"  y1="32" x2="14" y2="32"/><line x1="50" y1="32" x2="60" y2="32"/>
+        <line x1="12" y1="12" x2="19" y2="19"/><line x1="45" y1="45" x2="52" y2="52"/>
+        <line x1="52" y1="12" x2="45" y2="19"/><line x1="19" y1="45" x2="12" y2="52"/>
+      </g>
+    </svg>`; }
+
+  function svgCloud(size=86){ return `
+    <svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <path fill="white" d="M22 48h26a12 12 0 0 0 0-24 16 16 0 0 0-31-4A10 10 0 0 0 22 48z"/>
+    </svg>`; }
+
+  function svgRain(size=86){ return `
+    <svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <path fill="white" d="M22 36h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A9 9 0 0 0 22 36z"/>
+      <g stroke="white" stroke-width="4" stroke-linecap="round">
+        <line x1="24" y1="42" x2="20" y2="54"/>
+        <line x1="34" y1="42" x2="30" y2="56"/>
+        <line x1="44" y1="42" x2="40" y2="54"/>
+      </g>
+    </svg>`; }
+
+  function svgSnow(size=86){ return `
+    <svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <path fill="white" d="M22 36h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A9 9 0 0 0 22 36z"/>
+      <g stroke="white" stroke-width="3" stroke-linecap="round">
+        <line x1="24" y1="44" x2="24" y2="56"/><line x1="18" y1="50" x2="30" y2="50"/>
+        <line x1="34" y1="44" x2="34" y2="56"/><line x1="28" y1="50" x2="40" y2="50"/>
+        <line x1="44" y1="44" x2="44" y2="56"/><line x1="38" y1="50" x2="50" y2="50"/>
+      </g>
+    </svg>`; }
+
+  function svgFog(size=86){ return `
+    <svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.95">
+        <line x1="10" y1="22" x2="54" y2="22"/>
+        <line x1="14" y1="32" x2="58" y2="32"/>
+        <line x1="10" y1="42" x2="50" y2="42"/>
+      </g>
+    </svg>`; }
+
+  function svgThunder(size=86){ return `
+    <svg viewBox="0 0 64 64" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <path fill="white" d="M22 34h26a10 10 0 0 0 0-20 14 14 0 0 0-27-3A9 9 0 0 0 22 34z"/>
+      <path fill="white" d="M30 36l-6 14h8l-4 12 14-18h-8l6-8z"/>
+    </svg>`; }
+
+  function classify(code){
+    if (code === 0) return { icon: (s)=>svgSun(s),     text: "Clear" };
+    if ([1,2,3].includes(code)) return { icon: (s)=>svgCloud(s), text: "Cloudy" };
+    if ([45,48].includes(code)) return { icon: (s)=>svgFog(s),   text: "Fog" };
+    if ([51,53,55,56,57].includes(code)) return { icon: (s)=>svgRain(s),  text: "Drizzle" };
+    if ([61,63,65,66,67].includes(code)) return { icon: (s)=>svgRain(s),  text: "Rain" };
+    if ([71,73,75,77].includes(code)) return { icon: (s)=>svgSnow(s),  text: "Snow" };
+    if ([80,81,82].includes(code)) return { icon: (s)=>svgRain(s),  text: "Showers" };
+    if ([85,86].includes(code)) return { icon: (s)=>svgSnow(s),  text: "Snow showers" };
+    if ([95,96,99].includes(code)) return { icon: (s)=>svgThunder(s), text: "Thunderstorm" };
+    return { icon: (s)=>svgCloud(s), text: `Weather (code ${code})` };
+  }
+
+  function setClock(){
+    const now = new Date();
+    document.getElementById("time").textContent =
+      now.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
+    document.getElementById("date").textContent =
+      now.toLocaleDateString("en-GB", {weekday:"long", year:"numeric", month:"long", day:"numeric"});
+  }
+
+  function findNearestHourlyIndex(hourlyTimesISO, nowISO){
+    for (let i=0; i<hourlyTimesISO.length; i++){
+      if (hourlyTimesISO[i] >= nowISO) return i;
+    }
+    return 0;
+  }
+
+  async function loadWeather(){
+    try{
+      const res = await fetch(WEATHER_URL, {cache: "no-store"});
+      const data = await res.json();
+
+      // NOW
+      const tNow = Math.round(data.current.temperature_2m);
+      const wind = Math.round(data.current.wind_speed_10m);
+      const codeNow = data.current.weather_code;
+      const infoNow = classify(codeNow);
+
+      document.getElementById("iconNow").innerHTML = infoNow.icon(86);
+      document.getElementById("tempNow").textContent = `${tNow}°C`;
+      document.getElementById("descNow").textContent = `${infoNow.text} · Wind ${wind} m/s`;
+
+      // Widget: Now
+      document.getElementById("wIconNow").innerHTML = infoNow.icon(38);
+      document.getElementById("wTempNow").textContent = `${tNow}°C`;
+      document.getElementById("wDescNow").textContent = infoNow.text;
+
+      // In 3 hours
+      const idxNow = findNearestHourlyIndex(data.hourly.time, data.current.time);
+      const idx3h = Math.min(idxNow + 3, data.hourly.time.length - 1);
+      const t3 = Math.round(data.hourly.temperature_2m[idx3h]);
+      const c3 = data.hourly.weather_code[idx3h];
+      const info3 = classify(c3);
+
+      document.getElementById("wIcon3h").innerHTML = info3.icon(38);
+      document.getElementById("wTemp3h").textContent = `${t3}°C`;
+      document.getElementById("wDesc3h").textContent = info3.text;
+
+      // Tomorrow
+      const tMin = Math.round(data.daily.temperature_2m_min[1]);
+      const tMax = Math.round(data.daily.temperature_2m_max[1]);
+      const cTom = data.daily.weather_code[1];
+      const infoTom = classify(cTom);
+
+      document.getElementById("wIconTom").innerHTML = infoTom.icon(38);
+      document.getElementById("wTempTom").textContent = `${tMin}–${tMax}°C`;
+      document.getElementById("wDescTom").textContent = infoTom.text;
+
+      const updated = new Date(data.current.time);
+      document.getElementById("updated").textContent =
+        `Updated: ${updated.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"})}`;
+    } catch (e) {
+      document.getElementById("descNow").textContent = "Weather data unavailable";
+      document.getElementById("updated").textContent = "";
+    }
+  }
+
+  setClock();
+  setInterval(setClock, 1000);
+
+  loadWeather();
+  setInterval(loadWeather, 10 * 60 * 1000);
+
+  // Optional: hard reload every 12h for kiosk stability
+  setInterval(() => location.reload(), 12 * 60 * 60 * 1000);
+</script>
+</body>
+</html>
